@@ -1,0 +1,30 @@
+(rule
+ (targets pow_overflow_bounds.ml)
+ (deps
+  (:first_dep ../generate/generate_pow_overflow_bounds.exe))
+ (action
+  (bash "%{first_dep} -atomic -o %{targets}"))
+ (mode fallback))
+
+(library
+ (name base)
+ (public_name base)
+ (ocamlopt_flags
+  :standard
+  (:include ocamlopt-flags))
+ (libraries base_stubs basement capsule0.prim nonempty_list_type
+   ocaml_intrinsics_kernel sexplib0 shadow_stdlib)
+ (preprocess
+  (pps ppx_base ppx_base_internal ppx_base_lint
+    -compare-require-explicit-locality ppx_array_base
+    -require-template-extension -type-conv-keep-w32=both)))
+
+(ocamllex hex_lexer)
+
+(documentation)
+
+(rule
+ (targets ocamlopt-flags)
+ (deps)
+ (action
+  (write-file ocamlopt-flags "()")))

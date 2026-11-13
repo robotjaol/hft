@@ -1,0 +1,267 @@
+(* We don't just include Sexplib.Std because one can only define Hashtbl once in this
+   module. *)
+
+open! Import
+
+(** [include]d first so that everything else shadows it *)
+include Core_pervasives
+
+include Int.Replace_polymorphic_compare
+include Base_quickcheck.Export
+include Deprecate_pipe_bang
+include Either.Export
+include From_sexplib
+include Interfaces
+include List.Infix
+include Never_returns
+include Modes.Export
+include Ordering.Export
+include Perms.Export
+include Result.Export
+include Iarray.O
+include Ppx_enumerate_lib.Export
+
+type -'a return = 'a With_return.return = private { return : 'b. 'a -> 'b } [@@unboxed]
+
+(** Raised if malloc in C bindings fail (errno * size). *)
+exception C_malloc_exn of int * int
+
+(* errno, size *)
+let () =
+  Basement.Stdlib_shim.Callback.Safe.register_exception
+    "C_malloc_exn"
+    (C_malloc_exn (0, 0))
+;;
+
+exception Finally = Exn.Finally
+
+let fst3 (x, _, _) = x
+let snd3 (_, y, _) = y
+let trd3 (_, _, z) = z
+
+(** [phys_same] is like [phys_equal], but with a more general type. [phys_same] is useful
+    when dealing with existential types, when one has a packed value and an unpacked value
+    that one wants to check are physically equal. One can't use [phys_equal] in such a
+    situation because the types are different. *)
+external phys_same : 'a 'b. ('a[@local_opt]) -> ('b[@local_opt]) -> bool = "%eq"
+
+let ( % ) = Int.( % )
+let ( /% ) = Int.( /% )
+let ( // ) = Int.( // )
+let ( ==> ) a b = (not a) || b
+let bprintf = Printf.bprintf
+let const = Fn.const
+let eprintf = Printf.eprintf
+let error = Or_error.error
+let error_s = Or_error.error_s
+let failwithf = Base.Printf.failwithf
+let failwiths = Error.failwiths
+let force = Base.Lazy.force
+let fprintf = Printf.fprintf
+let invalid_argf = Base.Printf.invalid_argf
+let ifprintf = Printf.ifprintf
+let is_none = Option.is_none
+let is_some = Option.is_some
+let ksprintf = Printf.ksprintf
+let ok_exn = Or_error.ok_exn
+let phys_equal = Base.phys_equal
+let print_s = Stdio.print_s
+let eprint_s = Stdio.eprint_s
+let printf = Printf.printf
+let protect = Exn.protect
+let protectx = Exn.protectx
+let raise_s = Error.raise_s
+let round = Float.round
+let ( **. ) = Base.( **. )
+let ( %. ) = Base.( %. )
+let sprintf = Printf.sprintf
+
+external stage : ('a[@local_opt]) -> ('a Staged.t[@local_opt]) = "%identity"
+external unstage : ('a Staged.t[@local_opt]) -> ('a[@local_opt]) = "%identity"
+
+let with_return = With_return.with_return
+let with_return_option = With_return.with_return_option
+
+(* With the following aliases, we are just making extra sure that the toplevel sexp
+   converters line up with the ones in our modules. *)
+
+include Typerep_lib.Std_internal
+
+include (
+struct
+  (* [deriving hash] is missing for [array], [bytes], and [ref] since these types are
+     mutable. *)
+  type 'a array = 'a Array.t
+  [@@deriving compare, equal, globalize, sexp, bin_io, sexp_grammar]
+
+  [%%rederive.portable type nonrec 'a array = 'a Array.t [@@deriving typerep]]
+
+  type nonrec floatarray = floatarray [@@deriving globalize, sexp, sexp_grammar]
+
+  type bool = Bool.t
+  [@@deriving
+    bin_io, compare, hash, equal, globalize, sexp ~unboxed, sexp_grammar, typerep]
+
+  type char = Char.t
+  [@@deriving
+    bin_io, compare, hash, equal, globalize, sexp ~unboxed, sexp_grammar, typerep]
+
+  type float = Float.t
+  [@@deriving
+    bin_io, compare, hash, equal, globalize, sexp ~unboxed, sexp_grammar, typerep]
+
+  type 'a iarray = 'a Iarray.t
+  [@@deriving bin_io, compare, equal, globalize, sexp, sexp_grammar]
+
+  [%%rederive.portable type nonrec 'a iarray = 'a Iarray.t [@@deriving hash, typerep]]
+
+  type int = Int.t
+  [@@deriving bin_io, compare, hash, equal, globalize, sexp, sexp_grammar, typerep]
+
+  type int32 = Int32.t
+  [@@deriving bin_io, compare, hash, equal, globalize, sexp, sexp_grammar, typerep]
+
+  type int64 = Int64.t
+  [@@deriving bin_io, compare, hash, equal, globalize, sexp, sexp_grammar, typerep]
+
+  type 'a lazy_t = 'a Lazy.t
+  [@@deriving bin_io, compare, hash, sexp, sexp_grammar, typerep]
+
+  type 'a list = 'a List.t
+  [@@deriving compare, hash, equal, globalize, sexp, sexp_grammar, typerep]
+
+  [%%rederive type nonrec 'a list = 'a List.t [@@deriving bin_io]]
+
+  type nativeint = Nativeint.t
+  [@@deriving bin_io, compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+  type 'a option = 'a Option.t
+  [@@deriving compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+  [%%rederive type 'a option = 'a Option.t [@@deriving bin_io]]
+
+  type ('ok, 'err) result = ('ok, 'err) Result.t
+  [@@deriving bin_io, compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+  (* Referring to [String.t] inserts [string.ml] in the middle of a ton of module
+     dependencies in this library. Instead we just nonrec with [string]. *)
+  type nonrec string = string
+  [@@deriving bin_io, compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+  type bytes = Bytes.t
+  [@@deriving bin_io, compare, equal, globalize, sexp, sexp_grammar, typerep]
+
+  type 'a ref = 'a Ref.t
+  [@@deriving bin_io, compare, equal, globalize, sexp, sexp_grammar, typerep]
+
+  type unit = Unit.t
+  [@@deriving
+    bin_io, compare, equal, globalize, hash, sexp ~unboxed, sexp_grammar, typerep]
+
+  type 'a or_null = 'a Or_null.t
+  [@@deriving bin_io, compare, equal, globalize, hash, sexp, typerep]
+end :
+  sig
+    type 'a array [@@deriving bin_io, compare, equal, globalize, sexp, sexp_grammar]
+
+    [%%rederive: type nonrec 'a array = 'a Array.t [@@deriving typerep]]
+
+    type nonrec floatarray = floatarray [@@deriving sexp, globalize, sexp_grammar]
+
+    type nonrec bool = bool
+    [@@deriving
+      bin_io, compare, equal, globalize, hash, sexp ~unboxed, sexp_grammar, typerep]
+
+    type nonrec char = char
+    [@@deriving
+      bin_io, compare, equal, globalize, hash, sexp ~unboxed, sexp_grammar, typerep]
+
+    type nonrec float = float
+    [@@deriving
+      bin_io, compare, equal, globalize, hash, sexp ~unboxed, sexp_grammar, typerep]
+
+    type 'a iarray = 'a Iarray.t
+    [@@deriving bin_io, compare, equal, globalize, sexp, sexp_grammar]
+
+    [%%rederive: type nonrec 'a iarray = 'a iarray [@@deriving hash, typerep]]
+
+    type int
+    [@@deriving bin_io, compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+    type nonrec int32 = int32
+    [@@deriving bin_io, compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+    type nonrec int64 = int64
+    [@@deriving bin_io, compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+    type 'a lazy_t [@@deriving bin_io, compare, hash, sexp, sexp_grammar, typerep]
+    type 'a list [@@deriving compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+    [%%rederive: type nonrec 'a list = 'a List.t [@@deriving bin_io]]
+
+    type nonrec nativeint = nativeint
+    [@@deriving bin_io, compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+    type 'a option
+    [@@deriving compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+    [%%rederive: type nonrec 'a option = 'a option [@@deriving bin_io]]
+
+    type ('ok, 'err) result
+    [@@deriving bin_io, compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+    type string
+    [@@deriving bin_io, compare, equal, globalize, hash, sexp, sexp_grammar, typerep]
+
+    type bytes [@@deriving bin_io, compare, equal, globalize, sexp, sexp_grammar, typerep]
+
+    type 'a ref
+    [@@deriving bin_io, compare, equal, globalize, sexp, sexp_grammar, typerep]
+
+    type nonrec unit = unit
+    [@@deriving
+      bin_io, compare, equal, globalize, hash, sexp ~unboxed, sexp_grammar, typerep]
+
+    type nonrec 'a or_null = 'a or_null
+    [@@or_null_reexport]
+    [@@deriving bin_io, compare, equal, globalize, hash, sexp, typerep]
+  end
+  with type 'a array := 'a array
+  with type bool := bool
+  with type char := char
+  with type float := float
+  with type 'a iarray := 'a iarray
+  with type int := int
+  with type int32 := int32
+  with type int64 := int64
+  with type 'a list := 'a list
+  with type nativeint := nativeint
+  (* use a destructive substitution for [value] only to re-expose the constructors;
+     otherwise, in certain cases this produces arcane errors about the type being abstract
+     and ruins the output of mdx tests *)
+  with type 'a option := 'a option
+  with type ('ok, 'err) result := ('ok, 'err) result
+  with type string := string
+  with type bytes := bytes
+  with type 'a lazy_t := 'a lazy_t
+  with type 'a ref := 'a ref
+  with type unit := unit
+  with type 'a or_null := 'a or_null)
+
+(* When running with versions of the compiler that don't support the [iarray] extension,
+   re-export it from [Base], which defines it as an abstract type in such cases.
+
+   We avoid re-exporting it internally as this constrains the kinding of the type
+   parameter as compared to the compiler built-in [iarray]. *)
+
+type nonrec 'a iarray = 'a iarray
+
+(* Export ['a or_null] with constructors [Null] and [This] whenever Core is opened, so
+   uses of those identifiers work in both upstream OCaml and OxCaml. *)
+
+type 'a or_null = 'a Base.Or_null.t =
+  | Null
+  | This of 'a
+
+let sexp_of_exn = Exn.sexp_of_t
+let maybe_globalize = Base.maybe_globalize

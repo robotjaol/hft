@@ -1,0 +1,7 @@
+(library
+ (name validate)
+ (public_name core.validate)
+ (preprocess
+  (pps ppx_jane -compare-require-explicit-locality
+    -require-template-extension))
+ (libraries base))

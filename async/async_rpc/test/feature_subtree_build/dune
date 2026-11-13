@@ -1,0 +1,5 @@
+(library
+ (name async_rpc_test_feature_subtree_build)
+ (libraries async async_rpc_test core_unix.bigstring_unix core linux_extended)
+ (preprocess
+  (pps ppx_jane)))

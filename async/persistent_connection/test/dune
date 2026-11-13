@@ -1,0 +1,6 @@
+(library
+ (name persistent_connection_test)
+ (libraries async core expect_test_helpers_base persistent_connection
+   sexpresso)
+ (preprocess
+  (pps ppx_jane)))

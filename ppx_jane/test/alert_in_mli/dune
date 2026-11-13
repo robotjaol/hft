@@ -1,0 +1,12 @@
+(library
+ (name ppx_jane_test_alert_in_mli)
+ (preprocess
+  (pps ppx_jane -compare-require-explicit-locality)))
+
+(rule
+ (targets ppx_jane_test_alert_in_mli_mli_pp.output)
+ (deps ppx_jane_test_alert_in_mli.mli.pp)
+ (alias default)
+ (action
+  (copy ppx_jane_test_alert_in_mli.mli.pp
+    ppx_jane_test_alert_in_mli_mli_pp.output)))
